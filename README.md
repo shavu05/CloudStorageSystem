@@ -2,6 +2,19 @@
 
 A private, browser-based file manager built with **Python, Flask, and Amazon S3**. Sign in to upload, browse, search, download, rename, and delete objects in your own S3 bucket.
 
+## Screenshots
+
+These screenshots show the AWS S3 bucket, the CloudVault dashboard, and the sign-in page.
+
+### AWS S3 bucket
+![AWS S3 bucket](cloudvault-aws.png)
+
+### CloudVault dashboard
+![CloudVault dashboard](cloudvault-dashboard.png)
+
+### Sign-in page
+![CloudVault sign-in page](cloudvault-login.png)
+
 > **Security note:** This project is designed as a single-admin portfolio/demo application. Keep the S3 bucket private, use least-privilege IAM permissions, configure a strong password hash and Flask secret, and deploy behind HTTPS with a production WSGI server. Do not use Flask's development server for public deployment.
 >
 > ## 📸 Project Screenshots
