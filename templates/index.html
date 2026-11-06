@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111827">
+  <title>CloudVault · File manager</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{{ url_for('index') }}">
+      <span class="brand-mark" aria-hidden="true">CV</span>
+      <span>CloudVault</span>
+    </a>
+    <form method="post" action="{{ url_for('logout') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="button button-quiet" type="submit">Sign out</button>
+    </form>
+  </header>
+
+  <main class="page-shell">
+    <section class="page-heading">
+      <div>
+        <p class="eyebrow">YOUR PRIVATE WORKSPACE</p>
+        <h1>Cloud storage</h1>
+        <p class="muted">Manage files stored securely in your Amazon S3 bucket.</p>
+      </div>
+      <span class="status-pill"><span class="status-dot"></span> Private storage</span>
+    </section>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }}" role="status">{{ message }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <section class="summary-grid" aria-label="Storage summary">
+      <article class="summary-card">
+        <span class="summary-label">Stored files</span>
+        <strong>{{ files|length }}</strong>
+        <span class="summary-note">Objects in this bucket</span>
+      </article>
+      <article class="summary-card">
+        <span class="summary-label">Total storage</span>
+        <strong>{{ total_mb }} <small>MB</small></strong>
+        <span class="summary-note">{{ "{:,}".format(total_bytes) }} bytes</span>
+      </article>
+      <article class="summary-card summary-card-accent">
+        <span class="summary-label">Upload limit</span>
+        <strong>{{ max_upload_mb }} <small>MB</small></strong>
+        <span class="summary-note">Maximum per file</span>
+      </article>
+    </section>
+
+    <section class="panel upload-panel">
+      <div>
+        <p class="eyebrow">ADD TO YOUR STORAGE</p>
+        <h2>Upload a file</h2>
+        <p class="muted">Choose a file from your device. Files are stored in your private S3 bucket.</p>
+      </div>
+      <form method="post" action="{{ url_for('upload') }}" enctype="multipart/form-data" class="upload-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label class="file-picker" for="file-input">
+          <span class="file-picker-icon" aria-hidden="true">＋</span>
+          <span id="file-name">Choose a file</span>
+          <input id="file-input" type="file" name="file" required>
+        </label>
+        <button class="button button-primary" type="submit">Upload file</button>
+      </form>
+    </section>
+
+    <section class="panel files-panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">S3 BUCKET CONTENTS</p>
+          <h2>Your files</h2>
+        </div>
+        <label class="search-box">
+          <span class="visually-hidden">Search files</span>
+          <span aria-hidden="true">⌕</span>
+          <input type="search" id="file-search" placeholder="Search files…" autocomplete="off">
+        </label>
+      </div>
+
+      {% if files %}
+        <div class="table-wrap">
+          <table id="files-table">
+            <thead>
+              <tr><th>File name</th><th>Size</th><th>Last modified</th><th class="actions-heading">Actions</th></tr>
+            </thead>
+            <tbody>
+              {% for file in files %}
+                <tr>
+                  <td class="file-name-cell"><span class="file-icon" aria-hidden="true">▤</span><span class="file-name-text">{{ file.Key }}</span></td>
+                  <td class="nowrap">{{ "%.1f"|format(file.Size / 1024) }} KB</td>
+                  <td class="nowrap">{{ file.LastModified.strftime('%d %b %Y, %I:%M %p') }}</td>
+                  <td>
+                    <div class="row-actions">
+                      <form method="post" action="{{ url_for('download') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="key" value="{{ file.Key }}">
+                        <button class="text-action" type="submit">Download</button>
+                      </form>
+                      <form method="post" action="{{ url_for('rename') }}" class="rename-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="key" value="{{ file.Key }}">
+                        <label class="visually-hidden" for="rename-{{ loop.index }}">New filename for {{ file.Key }}</label>
+                        <input id="rename-{{ loop.index }}" name="new_name" type="text" placeholder="New filename" required maxlength="255">
+                        <button class="text-action" type="submit">Rename</button>
+                      </form>
+                      <form method="post" action="{{ url_for('delete') }}" onsubmit="return confirm('Delete this file permanently?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="key" value="{{ file.Key }}">
+                        <button class="text-action text-action-danger" type="submit">Delete</button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <p id="empty-search" class="empty-state" hidden>No files match your search.</p>
+      {% else %}
+        <div class="empty-state">
+          <div class="empty-icon" aria-hidden="true">☁</div>
+          <h3>Your storage is empty</h3>
+          <p class="muted">Upload your first file to see it listed here.</p>
+        </div>
+      {% endif %}
+    </section>
+    <p class="page-footnote">Downloads use temporary links that expire after five minutes. Keep your AWS bucket private.</p>
+  </main>
+
+  <script>
+    const fileInput = document.getElementById("file-input");
+    const fileName = document.getElementById("file-name");
+    if (fileInput) {
+      fileInput.addEventListener("change", () => {
+        fileName.textContent = fileInput.files.length ? fileInput.files[0].name : "Choose a file";
+      });
+    }
+
+    const searchInput = document.getElementById("file-search");
+    if (searchInput) {
+      searchInput.addEventListener("input", () => {
+        const query = searchInput.value.trim().toLowerCase();
+        const rows = document.querySelectorAll("#files-table tbody tr");
+        let visible = 0;
+        rows.forEach((row) => {
+          const match = row.querySelector(".file-name-text").textContent.toLowerCase().includes(query);
+          row.hidden = !match;
+          if (match) visible += 1;
+        });
+        const emptySearch = document.getElementById("empty-search");
+        if (emptySearch) emptySearch.hidden = visible !== 0;
+      });
+    }
+  </script>
+</body>
+</html>
