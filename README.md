@@ -144,7 +144,7 @@ The built-in Flask server is intended only for local development. For production
 Install development dependencies and run the test suite:
 
     python -m pip install -r requirements-dev.txt
-    pytest
+    python -m pytest -q
 
 The included GitHub Actions workflow also runs Python compilation and the test suite on pushes and pull requests.
 
